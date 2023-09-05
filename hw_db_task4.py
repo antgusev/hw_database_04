@@ -30,11 +30,11 @@ def create_db(conn):
 
         cur.execute("""
         INSERT INTO phones (phone_id, client_id, phone)
-        VALUES (0, 0, 000000000000);
+        VALUES (0, 0, '000000000000');
         """)
         conn.commit()    
 
-    # return cur.fetchall()
+        # return cur.fetchall()
 
 def add_client(conn, first_name, last_name, email, phone=None):
     with conn.cursor() as cur:
@@ -48,12 +48,11 @@ def add_client(conn, first_name, last_name, email, phone=None):
 
         cur.execute("""
         INSERT INTO phones (phone_id, client_id, phone)
-        VALUES ((SELECT MAX(phone_id) FROM phones)+1, %s, %s)
-        RETURNING phone_id, client_id, phone;
+        VALUES ((SELECT MAX(phone_id) FROM phones)+1, %s, %s);
         """, (last_client_id, phone))
         conn.commit()
 
-    #return cur.fetchall()
+        # return cur.fetchall()
 
 def add_phone(conn, client_id, phone):
     with conn.cursor() as cur:
@@ -62,7 +61,7 @@ def add_phone(conn, client_id, phone):
         VALUES ((SELECT MAX(phone_id) FROM phones)+1,  %s, %s)
         RETURNING phone_id, client_id, phone;
         """, (client_id, phone))
-    # return cur.fetchone()
+        return cur.fetchone()
 
 def change_client(conn, client_id, first_name=None, last_name=None, email=None, phone=None):
     with conn.cursor() as cur:
@@ -81,16 +80,17 @@ def change_client(conn, client_id, first_name=None, last_name=None, email=None, 
         RETURNING phone_id, client_id, phone;
         """, (phone, client_id))
 
-    # return cur.fetchone()
+        return cur.fetchall()
 
 def delete_phone(conn, client_id, phone):
     with conn.cursor() as cur:
         cur.execute("""
         DELETE FROM phones
-        WHERE client_id = %s, phone = %s;
+        WHERE client_id = %s AND phone = %s
+        RETURNING phone_id, client_id, phone;
         """, (client_id, phone))
 
-    return cur.fetchall()
+        return cur.fetchall()
 
 def delete_client(conn, client_id):
     
@@ -107,17 +107,36 @@ def delete_client(conn, client_id):
         WHERE client_id = %s;
         """, (client_id,))
         conn.commit()
-    # return cur.fetchall()
+        # return cur.fetchall()
 
 def find_client(conn, first_name=None, last_name=None, email=None, phone=None):
     with conn.cursor() as cur:
+        # cur.execute("""
+        # SELECT c.first_name, c.last_name, c.email, c.phone FROM clients AS c
+        # LEFT JOIN phones AS p ON c.client_id = p.client_id
+        # WHERE c.first_name LIKE %s AND c.last_name LIKE %s AND c.email LIKE %s AND c.phone LIKE %s;
+        # """, (first_name, last_name, email, phone))
+    
+        # cur.execute("""
+        # SELECT c.first_name, c.last_name, c.email, c.phone FROM clients AS c
+        # LEFT JOIN phones AS p ON c.client_id = p.client_id
+        # WHERE (c.first_name = %s OR c.first_name = %) THEN
+        #     (c.last_name = %s OR c.last_name = %) THEN
+        #     (c.email = %s OR c.email = %) THEN
+        #     (c.phone = %s OR c.phone = %);
+        # """, (first_name, last_name, email, phone))
+
         cur.execute("""
-        SELECT c.first_name, c.last_name, c.email, c.phone FROM clients AS c
+        SELECT c.first_name, c.last_name, c.email, p.phone FROM clients AS c
         LEFT JOIN phones AS p ON c.client_id = p.client_id
-        WHERE c.first_name LIKE %s AND c.last_name LIKE %s AND c.email LIKE %s AND c.phone LIKE %s
-        RETURNING client_id, first_name, last_name, email, phone;
-        """, (first_name, last_name, email, phone))
-    return cur.fetchone()
+        WHERE (c.first_name = %s OR %s IS NULL) AND
+              (c.last_name = %s OR %s IS NULL) AND
+              (c.email = %s OR %s IS NULL) AND
+              (p.phone = %s OR %s IS NULL);
+        """, (first_name, first_name, last_name, last_name, email, email, phone, phone))
+
+        # conn.commit()
+        print(cur.fetchone())
 
 
 with psycopg2.connect(database='db_hw_4', user='postgres', password='postgres') as conn:
@@ -129,14 +148,15 @@ with psycopg2.connect(database='db_hw_4', user='postgres', password='postgres') 
     #     """)
     #     conn.commit()
 
-    
-    print(create_db(conn))
-    # print(add_client(conn, 'Иван', 'Петров', 'petrov9999@gmail.com'))
-    # print(add_client(conn,'Глафира', 'Сидорова', 'sidorova9999@gmail.com', 89876543210))
-    # print(add_phone(conn, 1, 899956789))
-    # print(change_client(conn, 1, 'Иван', 'Петров', 'petrov9999@yandex.ru', 89687654344))
-    # print(delete_phone(conn, 2, 89876543210))
-    # print(delete_client(conn, 2))
-    # print(find_client(conn, 'Иван', None, None, None))
+    if __name__ == '__main__':
 
-conn.close()
+        create_db(conn)
+        # add_client(conn, 'Иван', 'Петров', 'petrov9999@gmail.com')
+        # add_client(conn,'Глафира', 'Сидорова', 'sidorova9999@gmail.com', '89876543210')
+        # print(add_phone(conn, 1, '899956789'))
+        # print(change_client(conn, 1, 'Иван', 'Петров', 'petrov9999@yandex.ru', '89687654344'))
+        # print(delete_phone(conn, 2, '89876543210'))
+        # delete_client(conn, 2)
+        # find_client(conn, 'Иван', None, None, None)
+
+# conn.close()
